@@ -220,6 +220,13 @@ export default function App() {
 
   const isMobile = windowSize.width <= 1024;
   const currentTheme = getStatusTheme(); 
+  
+  const currentDateFormatted = new Date().toLocaleDateString('id-ID', { 
+    weekday: 'long', 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  });
 
   const customTooltipStyle = { 
     backgroundColor: 'rgba(255, 255, 255, 0.95)', 
@@ -286,7 +293,7 @@ export default function App() {
               <img className="w-full h-full object-cover" src={cctvImage} alt="Sungai Code" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
                 <div className="text-white text-xl font-bold leading-tight">Sungai Code, Sinduadi</div>
-                <div className="text-white text-sm font-semibold mt-1">Minggu, 24 Mei 2026</div>
+                <div className="text-white text-sm font-semibold mt-1">{currentDateFormatted}</div>
               </div>
             </div>
 
@@ -303,10 +310,15 @@ export default function App() {
                     </linearGradient>
                   </defs>
                 </svg>
-                <div className="absolute w-[60px] h-1.5 bg-black rounded-full origin-right transition-transform duration-1000 flex items-center" style={{ transform: `rotate(${currentTheme.angle}deg)`, right: '50%', bottom: '0px' }}>
-                  <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[10px] border-r-black absolute left-0" style={{ stroke: currentTheme.color }}></div>
+                {/* Jarum Pointer Baru - Tampilan HP */}
+                <div className="absolute w-[90px] h-3 origin-right transition-transform duration-1000 flex items-center justify-start drop-shadow-md z-0" style={{ transform: `rotate(${currentTheme.angle}deg)`, right: '50%', bottom: '-6px' }}>
+                  <svg viewBox="0 0 100 20" className="w-full h-full" preserveAspectRatio="none">
+                    <polygon points="0,10 100,0 100,20" fill="#000000" />
+                  </svg>
                 </div>
-                <div className="size-3 bg-black rounded-full absolute bottom-[-3px] z-10"></div>
+                <div className="size-6 bg-black rounded-full absolute bottom-[-12px] left-1/2 -translate-x-1/2 z-10 border-[2px] border-white shadow-md flex items-center justify-center">
+                  <div className="size-2 rounded-full" style={{ backgroundColor: currentTheme.color }}></div>
+                </div>
               </div>
               <div className="w-64 flex justify-between text-xs font-semibold text-black mt-2 px-1">
                 <span>0</span> <span>1.5</span> <span>3.0</span> <span>4.5</span> <span>6.0</span>
@@ -490,7 +502,7 @@ export default function App() {
                       [...dataLogs].reverse().map((log, idx) => (
                         <tr key={idx} className="border-b border-slate-200 hover:bg-teal-50 text-sm text-slate-700">
                           <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
-                          <td className="p-3 whitespace-nowrap">{log.tanggal}</td>
+                          <td className="p-3 font-bold whitespace-nowrap">{log.tanggal}</td>
                           <td className="p-3 whitespace-nowrap">{log.jam}</td>
                           {(tableType === 'realtime' || tableType === 'ketinggian') && <td className="p-3 font-semibold text-teal-600">{log.ketinggian_air}</td>}
                           {(tableType === 'realtime' || tableType === 'debit') && <td className="p-3 font-semibold text-violet-600">{log.debit_air}</td>}
@@ -669,7 +681,7 @@ export default function App() {
             <img className="w-full h-full object-cover" src={cctvImage} alt="Sungai Code" /> 
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6"> 
               <div className="text-white text-3xl font-bold font-['Poppins'] leading-tight">Sungai Code, Sinduadi</div> 
-              <div className="text-white text-xl font-semibold font-['Poppins'] mt-1">Minggu, 24 Mei 2026</div> 
+              <div className="text-white text-xl font-semibold font-['Poppins'] mt-1">{currentDateFormatted}</div> 
             </div> 
           </div> 
 
@@ -690,15 +702,18 @@ export default function App() {
                   </linearGradient> 
                 </defs> 
               </svg> 
-              {/* Jarum Pointer Utama Dinamis sesuai GetStatusTheme */} 
+              {/* Jarum Pointer Baru - Tampilan PC */} 
               <div 
-                className="absolute w-[74px] h-1.5 bg-black rounded-full origin-right transition-transform duration-1000 flex items-center" 
-                style={{ transform: `rotate(${currentTheme.angle}deg)`, right: '50%', bottom: '0px' }} 
+                className="absolute w-[110px] h-4 origin-right transition-transform duration-1000 flex items-center justify-start drop-shadow-md z-0" 
+                style={{ transform: `rotate(${currentTheme.angle}deg)`, right: '50%', bottom: '-8px' }} 
               >
-                {/* Desain Kepala Anak Panah Sesuai Gambar Ketiga */}
-                <div className="w-0 h-0 border-t-[5px] border-t-transparent border-b-[5px] border-b-transparent border-r-[12px] border-r-black absolute left-0" style={{ stroke: currentTheme.color }}></div>
+                <svg viewBox="0 0 100 20" className="w-full h-full" preserveAspectRatio="none">
+                  <polygon points="0,10 100,0 100,20" fill="#000000" />
+                </svg>
               </div> 
-              <div className="size-3.5 bg-black rounded-full absolute bottom-[-4px] z-10"></div> 
+              <div className="size-8 bg-black rounded-full absolute bottom-[-16px] left-1/2 -translate-x-1/2 z-10 border-[3px] border-white shadow-md flex items-center justify-center">
+                <div className="size-2.5 rounded-full" style={{ backgroundColor: currentTheme.color }}></div>
+              </div> 
             </div> 
             {/* Teks Range Skala Ukur */}
             <div className="w-80 flex justify-between text-base font-semibold font-['Poppins'] text-black mt-2 px-1"> 
@@ -827,7 +842,7 @@ export default function App() {
                        [...dataLogs].reverse().map((log, idx) => (
                          <tr key={idx} className="border-b border-slate-200 hover:bg-teal-50 transition-colors text-lg text-slate-700">
                            <td className="p-6 font-bold text-slate-400">{idx + 1}</td>
-                           <td className="p-6">{log.tanggal}</td>
+                           <td className="p-6 font-bold">{log.tanggal}</td>
                            <td className="p-6">{log.jam}</td>
                            {(tableType === 'realtime' || tableType === 'ketinggian') && <td className="p-6 font-semibold text-teal-600">{log.ketinggian_air}</td>}
                            {(tableType === 'realtime' || tableType === 'debit') && <td className="p-6 font-semibold text-violet-600">{log.debit_air}</td>}
