@@ -50,6 +50,8 @@ export default function App() {
   const [latestData, setLatestData] = useState(initialLogs[initialLogs.length - 1]); 
   const [tableType, setTableType] = useState('realtime');
   const [activePage, setActivePage] = useState('dashboard'); 
+  const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [scale, setScale] = useState({ x: 1, y: 1 });
 
   // State Grafik Mingguan (Fallback otomatis dipakai jika MySQL gagal / terputus)
   const [dataGrafikMingguan, setDataGrafikMingguan] = useState([ 
@@ -175,15 +177,16 @@ export default function App() {
 
   useEffect(() => { 
     const handleResize = () => { 
-      const scaleX = window.innerWidth / 1920; 
-      const scaleY = window.innerHeight / 1080; 
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setWindowSize({ width, height });
+      
+      const scaleX = width / 1920; 
+      const scaleY = height / 1080; 
       const uniformScale = Math.min(scaleX, scaleY);
       setScale({ x: uniformScale, y: uniformScale }); 
     }; 
     handleResize(); 
-    setTimeout(() => { 
-      window.dispatchEvent(new Event('resize')); 
-    }, 100); 
     window.addEventListener('resize', handleResize); 
     return () => window.removeEventListener('resize', handleResize); 
   }, []); 
@@ -202,23 +205,7 @@ export default function App() {
     return { color: '#84cc16', bg: 'bg-lime-500', angle }; 
   }; 
 
-  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  const [scale, setScale] = useState({ x: 1, y: 1 });
-
-  useEffect(() => {
-    const updateSize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setWindowSize({ width, height });
-      const nextScale = Math.min(1, width / 1920, height / 1080);
-      setScale({ x: nextScale, y: nextScale });
-    };
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
-
-  const isMobile = windowSize.width <= 1024;
+  const isMobile = windowSize.width <= 768;
   const currentTheme = getStatusTheme(); 
   
   const currentDateFormatted = new Date().toLocaleDateString('id-ID', { 
@@ -527,10 +514,10 @@ export default function App() {
 
   // ================= TAMPILAN KHUSUS DESKTOP (TIDAK ADA YANG DIUBAH / TETAP UTUH) =================
   return ( 
-    <div className="w-full min-h-screen flex items-center justify-center bg-slate-900 overflow-hidden px-4 py-4"> 
+    <div className="fixed inset-0 w-full h-full flex items-center justify-center bg-slate-900 overflow-hidden"> 
       <div 
-        className="relative bg-gradient-to-b from-cyan-700 via-teal-400 via-[73%] to-green-200 overflow-hidden shadow-2xl shrink-0" 
-        style={{ width: 1920, height: 1080, transform: `scale(${scale.x}, ${scale.y})`, transformOrigin: 'top center' }} 
+        className="w-[1920px] h-[1080px] relative bg-gradient-to-b from-cyan-700 via-teal-400 via-[73%] to-green-200 overflow-hidden shadow-2xl shrink-0" 
+        style={{ transform: `scale(${scale.x}, ${scale.y})`, transformOrigin: 'center' }} 
       > 
         <style> 
           {`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;700&display=swap');`} 
