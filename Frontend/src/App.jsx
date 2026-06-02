@@ -37,7 +37,7 @@ const generateInitialLogs = () => {
       curah_hujan: parseFloat(tempHujan.toFixed(2)),
       status: status,
       jam: d.toLocaleTimeString('id-ID', { hour12: false }),
-      tanggal: d.toLocaleDateString('id-ID')
+      tanggal: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
     });
   }
   return logs;
@@ -85,7 +85,7 @@ export default function App() {
 
       const d = new Date(today);
       d.setDate(today.getDate() - (29 - i));
-      const tanggalFormat = d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      const tanggalFormat = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
       return {
         hari: tanggalFormat,
@@ -159,7 +159,7 @@ export default function App() {
         setDataLogs(prevLogs => {
           const now = new Date();
           const jam = now.toLocaleTimeString('id-ID', { hour12: false });
-          const newLog = { ...newData, jam, tanggal: now.toLocaleDateString('id-ID') };
+          const newLog = { ...newData, jam, tanggal: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) };
           const updatedLogs = [...prevLogs, newLog];
           return updatedLogs.length > 50 ? updatedLogs.slice(updatedLogs.length - 50) : updatedLogs;
         });
