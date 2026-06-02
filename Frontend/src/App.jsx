@@ -183,8 +183,7 @@ export default function App() {
       
       const scaleX = width / 1920; 
       const scaleY = height / 1080; 
-      const uniformScale = Math.min(scaleX, scaleY);
-      setScale({ x: uniformScale, y: uniformScale }); 
+      setScale({ x: scaleX, y: scaleY }); 
     }; 
     handleResize(); 
     window.addEventListener('resize', handleResize); 
