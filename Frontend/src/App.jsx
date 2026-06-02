@@ -50,7 +50,6 @@ export default function App() {
   const [latestData, setLatestData] = useState(initialLogs[initialLogs.length - 1]); 
   const [tableType, setTableType] = useState('realtime');
   const [activePage, setActivePage] = useState('dashboard'); 
-  const [scale, setScale] = useState({ x: 1, y: 1 }); 
 
   // State Grafik Mingguan (Fallback otomatis dipakai jika MySQL gagal / terputus)
   const [dataGrafikMingguan, setDataGrafikMingguan] = useState([ 
@@ -203,6 +202,23 @@ export default function App() {
     return { color: '#84cc16', bg: 'bg-lime-500', angle }; 
   }; 
 
+  const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
+  const [scale, setScale] = useState({ x: 1, y: 1 });
+
+  useEffect(() => {
+    const updateSize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setWindowSize({ width, height });
+      const nextScale = Math.min(1, width / 1920, height / 1080);
+      setScale({ x: nextScale, y: nextScale });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
+
+  const isMobile = windowSize.width <= 1024;
   const currentTheme = getStatusTheme(); 
 
   const customTooltipStyle = { 
@@ -234,11 +250,275 @@ export default function App() {
     setActivePage('table');
   };
 
+  // ================= TAMPILAN KHUSUS HP (MOBILE) =================
+  if (isMobile) {
+    return (
+      <div className="min-h-screen w-full relative bg-gradient-to-b from-cyan-700 via-teal-400 via-[73%] to-green-200 overflow-x-hidden font-['Poppins'] pb-10">
+        <style>
+          {`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;700&display=swap');`}
+        </style>
+
+        {/* Header Mobile */}
+        <header className="px-4 py-6 flex flex-col gap-4">
+          <div className="flex justify-between items-center w-full">
+             <div className="w-8 h-6 flex flex-col justify-between cursor-pointer">
+                <span className="w-full h-1 bg-white rounded-full"></span>
+                <span className="w-full h-1 bg-white rounded-full"></span>
+                <span className="w-full h-1 bg-white rounded-full"></span>
+             </div>
+             <div className="w-10 h-10 bg-cyan-700/50 border border-white/25 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+                <svg className="w-6 h-6 text-white/80 mt-1 mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5-3-8-3z"/></svg>
+             </div>
+          </div>
+          <h1 className="text-center text-white text-3xl font-extrabold drop-shadow-md mt-2">Hydroguard Interactive</h1>
+          <div className="h-14 bg-white/20 rounded-full flex items-center justify-between px-6 border border-white/10 shadow-lg backdrop-blur-sm mt-2">
+             <span className="text-white text-sm font-bold tracking-widest opacity-90 truncate">DASHBOARD SUNGAI CODE</span>
+             <svg className="w-6 h-6 text-white font-black shrink-0 ml-2" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+        </header>
+
+        {/* Main Content Mobile */}
+        <main className="px-4 flex flex-col gap-6">
+          
+          {/* CCTV & Gauge (Paling atas di HP) */}
+          <div className="bg-gradient-to-b from-white to-sky-100 rounded-3xl shadow-xl p-4 flex flex-col gap-6">
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden shadow-md">
+              <img className="w-full h-full object-cover" src={cctvImage} alt="Sungai Code" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
+                <div className="text-white text-xl font-bold leading-tight">Sungai Code, Sinduadi</div>
+                <div className="text-white text-sm font-semibold mt-1">Minggu, 24 Mei 2026</div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center cursor-pointer" onClick={() => handleChartClick(null, 'realtime')}>
+              <div className="relative w-64 h-32 overflow-hidden flex items-end justify-center">
+                <svg className="w-full h-full absolute top-0 left-0" viewBox="0 0 100 50">
+                  <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#conicGaugeGradientMob)" strokeWidth="10" strokeLinecap="round" />
+                  <defs>
+                    <linearGradient id="conicGaugeGradientMob" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#84cc16" />
+                      <stop offset="50%" stopColor="#eab308" />
+                      <stop offset="66%" stopColor="#f97316" />
+                      <stop offset="83%" stopColor="#ef4444" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute w-[60px] h-1.5 bg-black rounded-full origin-right transition-transform duration-1000 flex items-center" style={{ transform: `rotate(${currentTheme.angle}deg)`, right: '50%', bottom: '0px' }}>
+                  <div className="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-r-[10px] border-r-black absolute left-0" style={{ stroke: currentTheme.color }}></div>
+                </div>
+                <div className="size-3 bg-black rounded-full absolute bottom-[-3px] z-10"></div>
+              </div>
+              <div className="w-64 flex justify-between text-xs font-semibold text-black mt-2 px-1">
+                <span>0</span> <span>1.5</span> <span>3.0</span> <span>4.5</span> <span>6.0</span>
+              </div>
+              <div key={latestData.status} className={`w-full max-w-[300px] h-14 ${currentTheme.bg} rounded-xl flex items-center justify-center shadow-md mt-6 transition-colors duration-500`}>
+                <span className="text-white text-xl font-bold tracking-wider drop-shadow-md">
+                  {latestData.status === 'Mencari data...' ? 'Aman' : latestData.status}
+                </span>
+              </div>
+            </div>
+
+            {/* 3 Metrics Mini Cards */}
+            <div className="grid grid-cols-3 gap-2 justify-items-center">
+              <div className="w-full bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden flex flex-col p-2 cursor-pointer" onClick={() => handleChartClick(null, 'ketinggian')}>
+                <div className="w-full h-2 bg-teal-400 absolute top-0 left-0"></div>
+                <span className="text-black text-[10px] font-normal leading-tight opacity-60 mt-3 block">Ketinggian Air</span>
+                <div className="w-full flex items-baseline justify-between mt-1 gap-1">
+                  <span className="text-lg font-semibold text-black tracking-tighter truncate">{latestData.ketinggian_air.toString().replace('.', ',')}</span>
+                  <span className="text-black text-[10px] font-semibold shrink-0">m</span>
+                </div>
+              </div>
+              <div className="w-full bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden flex flex-col p-2 cursor-pointer" onClick={() => handleChartClick(null, 'debit')}>
+                <div className="w-full h-2 bg-teal-600 absolute top-0 left-0"></div>
+                <span className="text-black text-[10px] font-normal leading-tight opacity-60 mt-3 block">Debit Air</span>
+                <div className="w-full flex items-baseline justify-between mt-1 gap-1">
+                  <span className="text-lg font-semibold text-black tracking-tighter truncate">{latestData.debit_air.toString().replace('.', ',')}</span>
+                  <span className="text-black text-[10px] font-semibold shrink-0">m³/s</span>
+                </div>
+              </div>
+              <div className="w-full bg-white border border-slate-100 rounded-xl shadow-sm relative overflow-hidden flex flex-col p-2 cursor-pointer" onClick={() => handleChartClick(null, 'curah_hujan')}>
+                <div className="w-full h-2 bg-cyan-700 absolute top-0 left-0"></div>
+                <span className="text-black text-[10px] font-normal leading-tight opacity-60 mt-3 block">Curah Hujan</span>
+                <div className="w-full flex items-baseline justify-between mt-1 gap-1">
+                  <span className="text-lg font-semibold text-black tracking-tighter truncate">{latestData.curah_hujan.toString().replace('.', ',')}</span>
+                  <span className="text-black text-[10px] font-semibold shrink-0">mm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Graphic Container Mobile */}
+          <div className="bg-white/20 p-4 rounded-3xl shadow-xl backdrop-blur-sm flex flex-col gap-6">
+            
+            {/* Hujan Card */}
+            <div className="bg-gradient-to-b from-white via-white to-sky-100 rounded-xl shadow-lg overflow-hidden p-5 cursor-pointer" onClick={() => handleChartClick(null, 'curah_hujan')}>
+              <div className="w-full h-3 left-0 top-0 absolute bg-teal-600"></div>
+              <div className="text-black text-sm font-bold opacity-60">Intensitas Curah Hujan</div>
+              <div className="text-black text-5xl font-bold mt-2">{latestData.curah_hujan.toString().replace('.', ',')}</div>
+              <div className="text-black text-xs font-normal mt-6">Curah Hujan Perhari</div>
+              <div className="w-full h-3 bg-teal-400 rounded-full overflow-hidden mt-2 relative">
+                <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-red-400 to-orange-200 rounded-full transition-all" style={{ width: `${Math.min(100, (latestData.curah_hujan / 100) * 100)}%` }}></div>
+              </div>
+            </div>
+
+            {/* Line Chart Realtime */}
+            <div className="bg-gradient-to-b from-white to-sky-100 rounded-xl shadow-lg overflow-hidden p-5 cursor-pointer" onClick={() => handleChartClick(null, 'debit')}>
+              <div className="w-full h-3 left-0 top-0 absolute bg-cyan-700"></div>
+              <div className="text-black text-sm font-bold opacity-60 mb-2">Tren Debit Air Real-Time</div>
+              <div className="w-full h-40 relative mt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dataLogs} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="curveGradientMob" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="#4c1d95" />
+                        <stop offset="50%" stopColor="#f43f5e" />
+                        <stop offset="100%" stopColor="#fdba74" />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#000000" strokeWidth={1} horizontal={false} opacity={0.2} />
+                    <XAxis dataKey="jam" tickLine={false} axisLine={false} stroke="#000" fontSize={8} fontStyle="bold" fontFamily="Inter" />
+                    <YAxis hide domain={[0, 70]} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Line type="monotone" dataKey="debit_air" stroke="url(#curveGradientMob)" strokeWidth={3} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            
+            {/* Analisis Mingguan */}
+            <div className="bg-gradient-to-b from-white to-sky-100 rounded-xl shadow-lg overflow-hidden flex flex-col pb-4 cursor-pointer" onClick={() => handleChartClick(null, 'mingguan')}>
+              <div className="w-full h-3 bg-teal-400"></div>
+              <div className="px-4 pt-3">
+                <div className="w-full text-black text-sm font-bold opacity-60">Analisis Ketinggian & Debit Mingguan</div>
+              </div>
+              <div className="flex-1 px-2 mt-4 space-y-4">
+                <div className="w-full h-32">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dataGrafikMingguan} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                      <XAxis dataKey="hari" tickLine={false} axisLine={false} stroke="#000" fontSize={10} fontFamily="Poppins" />
+                      <YAxis hide />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="tinggi_rata2" stackId="a" fill="#2dd4bf" maxBarSize={30} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="tinggi_maks" stackId="a" fill="#7c3aed" maxBarSize={30} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full h-32">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dataGrafikMingguan} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                      <XAxis dataKey="hari" tickLine={false} axisLine={false} stroke="#000" fontSize={10} fontFamily="Poppins" />
+                      <YAxis hide />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="tinggi_rata2" stackId="b" fill="#2dd4bf" maxBarSize={30} radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="tinggi_maks" stackId="b" fill="#f87171" maxBarSize={30} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </main>
+        
+        {/* Bagian Tabel Detail juga di-handle khusus untuk HP supaya muat ke layar kecil */}
+        {activePage === 'table' && (
+          <div className="fixed inset-0 z-50 bg-[#01798B] flex flex-col p-4 animate-in fade-in duration-200">
+            <div className="flex flex-col gap-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-8 bg-teal-400 rounded-full"></div>
+                <h1 className="text-xl font-extrabold text-white font-['Poppins'] drop-shadow-md">
+                  Data Riwayat {tableType === 'mingguan' ? '30 Hari Terakhir' : 
+                                tableType === 'realtime' ? 'Keseluruhan' : 
+                                tableType === 'ketinggian' ? 'Ketinggian Air' :
+                                tableType === 'debit' ? 'Debit Air' : 
+                                'Curah Hujan'}
+                </h1>
+              </div>
+              <button
+                onClick={() => setActivePage('dashboard')}
+                className="w-full py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-bold font-['Poppins'] backdrop-blur border border-white/20 transition-all shadow-lg flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Kembali ke Dashboard
+              </button>
+            </div>
+
+            <div className="flex-1 bg-white rounded-2xl shadow-xl flex flex-col overflow-hidden">
+              <div className="overflow-x-auto overflow-y-auto flex-1 p-0">
+                <table className="w-full text-left border-collapse font-['Poppins'] min-w-[600px]">
+                  <thead className="sticky top-0 bg-teal-600 shadow-md z-10">
+                    <tr className="text-white text-sm">
+                      {tableType === 'mingguan' ? (
+                        <>
+                          <th className="p-3 font-semibold">Tanggal</th>
+                          <th className="p-3 font-semibold">Ketinggian Rata-rata (m)</th>
+                          <th className="p-3 font-semibold">Ketinggian Maks. (m)</th>
+                          <th className="p-3 font-semibold">Debit Rata-rata (m³/s)</th>
+                          <th className="p-3 font-semibold">Curah Hujan (mm)</th>
+                          <th className="p-3 font-semibold">Status (Maks)</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="p-3 font-semibold">No</th>
+                          <th className="p-3 font-semibold">Tanggal</th>
+                          <th className="p-3 font-semibold">Jam</th>
+                          {(tableType === 'realtime' || tableType === 'ketinggian') && <th className="p-3 font-semibold">Ketinggian (m)</th>}
+                          {(tableType === 'realtime' || tableType === 'debit') && <th className="p-3 font-semibold">Debit Air (m³/s)</th>}
+                          {(tableType === 'realtime' || tableType === 'curah_hujan') && <th className="p-3 font-semibold">Curah Hujan (mm)</th>}
+                          <th className="p-3 font-semibold">Status</th>
+                        </>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableType === 'mingguan' ? (
+                      dataTabelBulanan.map((row, idx) => (
+                        <tr key={idx} className="border-b border-slate-200 hover:bg-teal-50 text-sm text-slate-700">
+                          <td className="p-3 font-bold text-slate-600 whitespace-nowrap">{row.hari}</td>
+                          <td className="p-3">{row.tinggi_rata2}</td>
+                          <td className="p-3 font-semibold text-teal-600">{row.tinggi_maks}</td>
+                          <td className="p-3 font-semibold text-violet-600">{row.debit_rata2}</td>
+                          <td className="p-3 font-semibold text-sky-600">{row.curah_hujan}</td>
+                          <td className="p-3">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm ${row.status === 'Awas' ? 'bg-red-500' : row.status === 'Siaga' ? 'bg-orange-500' : row.status === 'Waspada' ? 'bg-yellow-500' : 'bg-lime-500'}`}>
+                              {row.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      [...dataLogs].reverse().map((log, idx) => (
+                        <tr key={idx} className="border-b border-slate-200 hover:bg-teal-50 text-sm text-slate-700">
+                          <td className="p-3 font-bold text-slate-400">{idx + 1}</td>
+                          <td className="p-3 whitespace-nowrap">{log.tanggal}</td>
+                          <td className="p-3 whitespace-nowrap">{log.jam}</td>
+                          {(tableType === 'realtime' || tableType === 'ketinggian') && <td className="p-3 font-semibold text-teal-600">{log.ketinggian_air}</td>}
+                          {(tableType === 'realtime' || tableType === 'debit') && <td className="p-3 font-semibold text-violet-600">{log.debit_air}</td>}
+                          {(tableType === 'realtime' || tableType === 'curah_hujan') && <td className="p-3 font-semibold text-sky-600">{log.curah_hujan}</td>}
+                          <td className="p-3">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${log.status === 'Awas' ? 'bg-red-500' : log.status === 'Siaga' ? 'bg-orange-500' : log.status === 'Waspada' ? 'bg-yellow-500' : 'bg-lime-500'}`}>
+                              {log.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ================= TAMPILAN KHUSUS DESKTOP (TIDAK ADA YANG DIUBAH / TETAP UTUH) =================
   return ( 
-    <div className="w-screen h-screen flex items-center justify-center bg-slate-900 overflow-hidden"> 
+    <div className="w-full min-h-screen flex items-center justify-center bg-slate-900 overflow-hidden px-4 py-4"> 
       <div 
-        className="w-[1920px] h-[1080px] relative bg-gradient-to-b from-cyan-700 via-teal-400 via-[73%] to-green-200 overflow-hidden shadow-2xl shrink-0" 
-        style={{ transform: `scale(${scale.x}, ${scale.y})`, transformOrigin: 'center' }} 
+        className="relative bg-gradient-to-b from-cyan-700 via-teal-400 via-[73%] to-green-200 overflow-hidden shadow-2xl shrink-0" 
+        style={{ width: 1920, height: 1080, transform: `scale(${scale.x}, ${scale.y})`, transformOrigin: 'top center' }} 
       > 
         <style> 
           {`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;700&display=swap');`} 
