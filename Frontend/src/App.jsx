@@ -5,14 +5,49 @@ import cctvImage from './assets/sungai code.png';
 // Base URL untuk backend (VITE_API_URL ini nanti diisi domain Render di Vercel)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Helper untuk menghasilkan 50 data awal seketika agar grafik tidak kosong saat render awal atau mode fallback
+const generateInitialLogs = () => {
+  const logs = [];
+  const now = new Date();
+  let tempTMA = 2.15;
+  
+  for (let i = 50; i > 0; i--) {
+    const d = new Date(now.getTime() - i * 5000);
+    
+    if (tempTMA > 3.5) tempTMA -= (Math.random() * 0.5 + 0.1); 
+    else tempTMA += (Math.random() * 0.4 - 0.2); 
+    
+    if (tempTMA < 2.0) tempTMA = 2.0 + Math.random() * 0.1;
+    if (tempTMA > 5.0) tempTMA = 5.0;
+
+    let tempDebit = (tempTMA * 22) + (Math.random() * 5 - 2.5);
+    if (tempDebit < 5) tempDebit = 5 + Math.random() * 2;
+    
+    let tempHujan = (tempTMA * 12) + (Math.random() * 8 - 4);
+    if (tempHujan < 0) tempHujan = 0;
+
+    let status = 'Aman';
+    if (tempTMA >= 5.00) status = 'Awas';
+    else if (tempTMA >= 4.00) status = 'Siaga';
+    else if (tempTMA >= 3.00) status = 'Waspada';
+
+    logs.push({
+      ketinggian_air: parseFloat(tempTMA.toFixed(2)),
+      debit_air: parseFloat(tempDebit.toFixed(2)),
+      curah_hujan: parseFloat(tempHujan.toFixed(2)),
+      status: status,
+      jam: d.toLocaleTimeString('id-ID', { hour12: false }),
+      tanggal: d.toLocaleDateString('id-ID')
+    });
+  }
+  return logs;
+};
+
+const initialLogs = generateInitialLogs();
+
 export default function App() { 
-  const [dataLogs, setDataLogs] = useState([]); 
-  const [latestData, setLatestData] = useState({ 
-    ketinggian_air: 2.15, 
-    debit_air: 30.8, 
-    curah_hujan: 43.2, 
-    status: 'Aman' 
-  }); 
+  const [dataLogs, setDataLogs] = useState(initialLogs); 
+  const [latestData, setLatestData] = useState(initialLogs[initialLogs.length - 1]); 
   const [tableType, setTableType] = useState('realtime');
   const [activePage, setActivePage] = useState('dashboard'); 
   const [scale, setScale] = useState({ x: 1, y: 1 }); 
@@ -143,7 +178,8 @@ export default function App() {
     const handleResize = () => { 
       const scaleX = window.innerWidth / 1920; 
       const scaleY = window.innerHeight / 1080; 
-      setScale({ x: scaleX, y: scaleY }); 
+      const uniformScale = Math.min(scaleX, scaleY);
+      setScale({ x: uniformScale, y: uniformScale }); 
     }; 
     handleResize(); 
     setTimeout(() => { 
