@@ -1,303 +1,150 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const http = require('http');
+const { Server } = require('socket.io');
+const mysql = require('mysql2');
 const cors = require('cors');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-// Mencegah browser melakukan cache pada API
-app.use((req, res, next) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.set('Pragma', 'no-cache');
-    next();
+// Buat HTTP server dari Express
+const server = http.createServer(app);
+
+// Inisialisasi Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Mengizinkan akses dari frontend React Vite
+    methods: ["GET", "POST"]
+  }
 });
 
-// Load data dari CSV ke memori
-const csvFilePath = path.join(__dirname, 'dummy_sensor_data.csv');
-let sensorLogs = [];
+// 1. Konfigurasi Database MySQL (XAMPP)
+const db = mysql.createConnection({
+  host: 'localhost',
+  user: 'root',      // Default XAMPP username
+  password: '',      // Default XAMPP password (kosong)
+  database: 'hydro_db' 
+});
 
-const loadCSVData = () => {
-    try {
-        let needsRegeneration = false;
-        if (!fs.existsSync(csvFilePath)) {
-            needsRegeneration = true;
-        } else {
-            const checkContent = fs.readFileSync(csvFilePath, 'utf-8');
-            const checkLines = checkContent.trim().split('\n');
-            // Jika baris kurang dari 1500, berarti file CSV masih versi lama (cuma 1 hari)
-            if (checkLines.length < 1500) {
-                needsRegeneration = true;
-            } else {
-                // Cek data pertama dan terakhir untuk memastikan rentang waktunya lengkap
-                const firstLine = checkLines[1]; // index 0 adalah header
-                const lastLine = checkLines[checkLines.length - 1];
-                if (firstLine && lastLine) {
-                    const firstParts = firstLine.split(',');
-                    const lastParts = lastLine.split(',');
-                    if (firstParts.length >= 5 && lastParts.length >= 5) {
-                        const firstDate = new Date(firstParts[4].replace(' ', 'T'));
-                        const lastDate = new Date(lastParts[4].replace(' ', 'T'));
-                        const now = new Date();
-                        
-                        if (isNaN(firstDate) || isNaN(lastDate)) {
-                            needsRegeneration = true;
-                        } else {
-                            const isStale = (now - lastDate) > 24 * 60 * 60 * 1000; // Data terakhir sudah usang
-                            const isMissingHistory = (lastDate - firstDate) < (6 * 24 * 60 * 60 * 1000); // Riwayat kurang dari 6-7 hari
-                            
-                            // Regenerate otomatis jika data usang ATAU tidak memiliki riwayat 1 minggu penuh
-                            if (isStale || isMissingHistory) {
-                                needsRegeneration = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
+db.connect((err) => {
+  if (err) {
+    console.error('❌ Gagal koneksi ke MySQL:', err);
+  } else {
+    console.log('✅ Berhasil terkoneksi ke Database MySQL XAMPP!');
 
-        // Self-Healing: Otomatis generate ulang data CSV tanpa perlu ketik manual
-        if (needsRegeneration) {
-            console.log('⚠️ File CSV tidak ada atau masih versi lama (riwayat kurang dari 30 hari).');
-            console.log('⏳ Mengeksekusi ulang generate_csv.js secara otomatis...');
-            const { execSync } = require('child_process');
-            execSync('node generate_csv.js', { stdio: 'inherit' });
-        }
-
-        const fileContent = fs.readFileSync(csvFilePath, 'utf-8');
-        const lines = fileContent.trim().split('\n');
+    // AUTO-SEEDER: Cek apakah data kurang dari 50, kalau iya isi otomatis!
+    db.query('SELECT COUNT(*) AS total FROM sensor_logs', (err, results) => {
+      if (!err && results[0].total < 50) {
+        console.log('🔄 Database masih kosong. Memasukkan 50 data dummy otomatis...');
         
-        sensorLogs = []; // Pastikan array kosong sebelum memuat
-        for (let i = 1; i < lines.length; i++) { // Skip header
-            const line = lines[i].trim();
-            if (!line) continue;
-            
-            const [ketinggian_air, debit_air, curah_hujan, status, created_at] = line.split(',');
-            // Ganti spasi dengan huruf 'T' agar format string menjadi ISO 8601 standar
-            const safeDate = created_at.replace(' ', 'T'); 
-            sensorLogs.push({
-                id: i,
-                ketinggian_air: parseFloat(ketinggian_air),
-                debit_air: parseFloat(debit_air),
-                curah_hujan: parseFloat(curah_hujan),
-                status: status,
-                created_at: new Date(safeDate) 
-            });
+        const values = [];
+        const now = new Date();
+        let tempTMA = 2.15;
+        
+        for (let i = 50; i > 0; i--) {
+          const d = new Date(now.getTime() - i * 15000); // Mundur 15 detik per data
+          
+          if (tempTMA > 3.5) tempTMA -= (Math.random() * 0.5 + 0.1); 
+          else tempTMA += (Math.random() * 0.4 - 0.2); 
+          if (tempTMA < 2.0) tempTMA = 2.0 + Math.random() * 0.1;
+          if (tempTMA > 5.0) tempTMA = 5.0;
+
+          let tempDebit = (tempTMA * 22) + (Math.random() * 5 - 2.5);
+          if (tempDebit < 5) tempDebit = 5 + Math.random() * 2;
+          let tempHujan = (tempTMA * 12) + (Math.random() * 8 - 4);
+          if (tempHujan < 0) tempHujan = 0;
+
+          let status = 'Aman';
+          if (tempTMA >= 5.00) status = 'Awas';
+          else if (tempTMA >= 4.00) status = 'Siaga';
+          else if (tempTMA >= 3.00) status = 'Waspada';
+          
+          const jam = d.toLocaleTimeString('id-ID', { hour12: false });
+          const tanggal = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+          // Format waktu (created_at) ke standar MySQL YYYY-MM-DD HH:MM:SS
+          const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 19).replace('T', ' ');
+
+          values.push([parseFloat(tempTMA.toFixed(2)), parseFloat(tempDebit.toFixed(2)), parseFloat(tempHujan.toFixed(2)), status, jam, tanggal, localDate]);
         }
-        console.log(`Berhasil memuat ${sensorLogs.length} data dari CSV ke memori.`);
-    } catch (error) {
-        console.error('Gagal membaca file CSV:', error);
-    }
-};
-
-loadCSVData();
-
-let currentId = sensorLogs.length > 0 ? sensorLogs[sensorLogs.length - 1].id + 1 : 1;
-let currentTMA = sensorLogs.length > 0 ? sensorLogs[sensorLogs.length - 1].ketinggian_air : 2.5; 
-
-// SIMULASI SENSOR: Generate data dummy setiap 15 detik
-setInterval(() => {
-    if (currentTMA > 3.5) currentTMA -= (Math.random() * 0.5 + 0.1); // Cepat surut jika tinggi
-    else currentTMA += (Math.random() * 0.4 - 0.2); // Fluktuasi normal
-    
-    if (Math.random() < 0.15) currentTMA += (Math.random() * 0.8); // 15% peluang hujan deras
-    if (Math.random() < 0.02) currentTMA += (Math.random() * 1.2); // 2% peluang sangat deras
-    
-    if (currentTMA < 2.0) currentTMA = 2.0 + Math.random() * 0.1; // Minimal 2
-    if (currentTMA > 5.0) currentTMA = 5.0; // Maksimal batas 5
-
-    let currentDebit = (currentTMA * 22) + (Math.random() * 5 - 2.5);
-    if (currentDebit < 5) currentDebit = 5 + Math.random() * 2;
-
-    const ketinggianAir = parseFloat(currentTMA.toFixed(2));
-    const debitAir = parseFloat(currentDebit.toFixed(2));
-    
-    let curahHujan = (currentTMA * 12) + (Math.random() * 8 - 4);
-    if (curahHujan < 0) curahHujan = 0;
-    curahHujan = parseFloat(curahHujan.toFixed(2));
-
-    let status = 'Aman';
-    if (ketinggianAir >= 5.00) {
-        status = 'Awas';
-    } else if (ketinggianAir >= 4.00) {
-        status = 'Siaga';
-    } else if (ketinggianAir >= 3.00) {
-        status = 'Waspada';
-    }
-
-    const now = new Date();
-    
-    // Simpan ke array
-    sensorLogs.push({
-        id: currentId++,
-        ketinggian_air: ketinggianAir,
-        debit_air: debitAir,
-        curah_hujan: curahHujan,
-        status: status,
-        created_at: now
-    });
-
-    // Format timestamp untuk CSV (mirip format MySQL Timestamp: YYYY-MM-DD HH:MM:SS)
-    const tzOffset = now.getTimezoneOffset() * 60000;
-    const localNow = new Date(Date.now() - tzOffset);
-    const formattedDate = localNow.toISOString().slice(0, 19).replace('T', ' ');
-    
-    // Tambahkan baris baru ke file CSV secara otomatis
-    const newCsvLine = `${ketinggianAir},${debitAir},${curahHujan},${status},${formattedDate}\n`;
-    if (fs.existsSync(csvFilePath)) {
-        fs.appendFile(csvFilePath, newCsvLine, (err) => {
-            if (err) console.error('Gagal menyimpan ke file CSV:', err);
+        
+        const query = 'INSERT INTO sensor_logs (ketinggian_air, debit_air, curah_hujan, status, jam, tanggal, created_at) VALUES ?';
+        db.query(query, [values], (err) => {
+          if (err) console.error('❌ Gagal auto-insert:', err);
+          else console.log('✅ 50 Data awal berhasil ditambahkan! Silakan refresh browser kamu.');
         });
+      }
+    });
+  }
+});
+
+// 2. API Endpoints untuk Initial Load Frontend
+app.get('/api/sensor-data', (req, res) => {
+  // Ambil 50 data TERBARU, lalu urutkan kembali dari lama ke baru agar grafik berjalan maju
+  const query = 'SELECT * FROM (SELECT * FROM sensor_logs ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC';
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+app.get('/api/sensor-data/weekly', (req, res) => {
+  res.json([]); // Sementara dikosongkan agar React tidak error
+});
+
+app.get('/api/sensor-data/monthly', (req, res) => {
+  res.json([]); // Sementara dikosongkan agar React tidak error
+});
+
+// 3. Koneksi Socket.io
+io.on('connection', (socket) => {
+  console.log('🔌 Klien baru terhubung via Socket.io');
+  socket.on('disconnect', () => {
+    console.log('🔌 Klien terputus');
+  });
+});
+
+// 4. SIMULASI SENSOR: Insert otomatis ke MySQL & Broadcast via Socket.io tiap 15 detik
+setInterval(() => {
+  // ---------------------------------------------------------
+  // PENGUJIAN RESPONSE TIME (END-TO-END LATENCY)
+  // Titik A: Catat waktu persis saat akuisisi sensor (sebelum disimpan)
+  // ---------------------------------------------------------
+  const waktu_akuisisi = Date.now();
+
+  const ketinggian = parseFloat((Math.random() * 3 + 2).toFixed(2)); 
+  let status = 'Aman';
+  if (ketinggian >= 5.00) status = 'Awas';
+  else if (ketinggian >= 4.00) status = 'Siaga';
+  else if (ketinggian >= 3.00) status = 'Waspada';
+  
+  const debit = parseFloat((ketinggian * 22 + (Math.random() * 5 - 2.5)).toFixed(2));
+  const hujan = parseFloat(Math.max(0, (ketinggian * 12 + (Math.random() * 8 - 4))).toFixed(2));
+  
+  const now = new Date();
+  const jam = now.toLocaleTimeString('id-ID', { hour12: false });
+  const tanggal = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const query = 'INSERT INTO sensor_logs (ketinggian_air, debit_air, curah_hujan, status, jam, tanggal) VALUES (?, ?, ?, ?, ?, ?)';
+  
+  // Simpan data baru ke MySQL
+  db.query(query, [ketinggian, debit, hujan, status, jam, tanggal], (err, results) => {
+    if (!err) {
+      // Ambil data yang baru saja disimpan beserta timestamp (created_at) dari MySQL
+      db.query('SELECT * FROM sensor_logs WHERE id = ?', [results.insertId], (err, rows) => {
+        if (!err && rows.length > 0) {
+          // Copy objek dari MySQL dan sisipkan Titik A agar aman dikirim ke Frontend
+          const dataToBroadcast = { ...rows[0], waktu_akuisisi: waktu_akuisisi };
+          
+          // Broadcast ke Frontend secara Real-Time agar Latency bisa diukur!
+          io.emit('newData', dataToBroadcast);
+        }
+      });
     }
-    
-    console.log(`Data Dummy Masuk -> Tinggi: ${ketinggianAir}m, Status: ${status}`);
+  });
 }, 15000);
 
-// Helper format tanggal seperti format asli backend
-const formatTanggal = (date) => {
-    const d = new Date(date);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    return `${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
-};
-
-const formatJam = (date) => {
-    const d = new Date(date);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
-};
-
-// Helper untuk Group by Date
-const groupByDate = (logs) => {
-    const grouped = {};
-    logs.forEach(log => {
-        const d = new Date(log.created_at);
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        if (!grouped[dateKey]) {
-            grouped[dateKey] = { date: d, ketinggian_air: [], debit_air: [], curah_hujan: [] };
-        }
-        grouped[dateKey].ketinggian_air.push(log.ketinggian_air);
-        grouped[dateKey].debit_air.push(log.debit_air);
-        grouped[dateKey].curah_hujan.push(log.curah_hujan);
-    });
-    return Object.values(grouped).sort((a, b) => a.date - b.date);
-};
-
-// ENDPOINT: Ambil 50 data terakhir untuk grafik di Frontend
-app.get('/api/sensor-data', (req, res) => {
-    const last50 = sensorLogs.slice(-50);
-    const results = last50.map(log => ({
-        ...log,
-        tanggal: formatTanggal(log.created_at),
-        jam: formatJam(log.created_at)
-    }));
-    res.json(results);
-});
-
-// ENDPOINT: Ambil data mingguan (7 Hari Terakhir dari CSV)
-app.get('/api/sensor-data/weekly', (req, res) => {
-    const sixDaysAgo = new Date();
-    sixDaysAgo.setDate(new Date().getDate() - 6);
-    sixDaysAgo.setHours(0,0,0,0);
-
-    const filtered = sensorLogs.filter(log => log.created_at >= sixDaysAgo);
-    const grouped = groupByDate(filtered);
-    const daysMap = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    
-    // Paksa array selalu berisi 7 hari penuh (fallback otomatis jika CSV bolong/kosong)
-    const mapped = [];
-    for (let i = 6; i >= 0; i--) {
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() - i);
-        const dayStr = daysMap[targetDate.getDay()];
-        
-        const g = grouped.find(item => 
-            item.date.getDate() === targetDate.getDate() && 
-            item.date.getMonth() === targetDate.getMonth()
-        );
-        
-        if (g) {
-            const avgTinggi = g.ketinggian_air.reduce((a, b) => a + b, 0) / g.ketinggian_air.length;
-            const maxTinggi = Math.max(...g.ketinggian_air);
-            const avgDebit = g.debit_air.reduce((a, b) => a + b, 0) / g.debit_air.length;
-            const maxDebit = Math.max(...g.debit_air);
-            
-            mapped.push({ 
-                hari: dayStr, 
-                tinggi_rata2: parseFloat(avgTinggi.toFixed(2)), 
-                tinggi_maks: parseFloat(maxTinggi.toFixed(2)),
-                debit_rata2: parseFloat(avgDebit.toFixed(2)),
-                debit_maks: parseFloat(maxDebit.toFixed(2))
-            });
-        } else {
-            // Data mockup untuk mengisi hari yang bolong agar grafik dipastikan berisi 7 bar
-            mapped.push({ 
-                hari: dayStr, 
-                tinggi_rata2: parseFloat((Math.random() * 0.5 + 2.0).toFixed(2)), 
-                tinggi_maks: parseFloat((Math.random() * 1.0 + 2.5).toFixed(2)),
-                debit_rata2: parseFloat((Math.random() * 10 + 40).toFixed(2)),
-                debit_maks: parseFloat((Math.random() * 15 + 50).toFixed(2))
-            });
-        }
-    }
-    res.json(mapped);
-});
-
-// ENDPOINT: Ambil data bulanan (30 Hari Terakhir dari CSV)
-app.get('/api/sensor-data/monthly', (req, res) => {
-    const twentyNineDaysAgo = new Date();
-    twentyNineDaysAgo.setDate(new Date().getDate() - 29);
-    twentyNineDaysAgo.setHours(0,0,0,0);
-
-    const filtered = sensorLogs.filter(log => log.created_at >= twentyNineDaysAgo);
-    let grouped = groupByDate(filtered);
-    
-    // Pastikan array selalu berisi 30 hari penuh
-    const mapped = [];
-    for (let i = 0; i <= 29; i++) {
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() - i);
-        
-        const g = grouped.find(item => 
-            item.date.getDate() === targetDate.getDate() && 
-            item.date.getMonth() === targetDate.getMonth()
-        );
-        
-        const tanggalFormat = targetDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-        
-        if (g) {
-            const max_ketinggian = Math.max(...g.ketinggian_air);
-            let status = 'Aman';
-            if (max_ketinggian >= 5.00) status = 'Awas';
-            else if (max_ketinggian >= 4.00) status = 'Siaga';
-            else if (max_ketinggian >= 3.00) status = 'Waspada';
-            
-            const avgTinggi = g.ketinggian_air.reduce((a, b) => a + b, 0) / g.ketinggian_air.length;
-            const avgDebit = g.debit_air.reduce((a, b) => a + b, 0) / g.debit_air.length;
-            const avgHujan = g.curah_hujan.reduce((a, b) => a + b, 0) / g.curah_hujan.length;
-            
-            mapped.push({ 
-                hari: tanggalFormat, 
-                tinggi_rata2: parseFloat(avgTinggi.toFixed(2)), 
-                tinggi_maks: parseFloat(max_ketinggian.toFixed(2)), 
-                debit_rata2: parseFloat(avgDebit.toFixed(2)), 
-                curah_hujan: parseFloat(avgHujan.toFixed(2)), 
-                status: status 
-            });
-        } else {
-            mapped.push({
-                hari: tanggalFormat,
-                tinggi_rata2: 2.15,
-                tinggi_maks: 2.50,
-                debit_rata2: 45.20,
-                curah_hujan: 12.50,
-                status: 'Aman'
-            });
-        }
-    }
-    res.json(mapped);
-});
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Backend berjalan di http://localhost:${PORT}`);
+const PORT = 5000;
+// CATATAN: Pastikan memanggil server.listen() bukan app.listen() jika pakai Socket.io
+server.listen(PORT, () => {
+  console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
 });
