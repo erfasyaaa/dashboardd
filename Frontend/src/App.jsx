@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'; 
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts'; 
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line, AreaChart, Area } from 'recharts'; 
 import cctvImage from './assets/sungai code.png'; 
 import { io } from 'socket.io-client';
 
@@ -775,7 +775,7 @@ export default function App() {
               <div className="text-black text-lg font-bold opacity-60 mb-2">Tren Debit Air Real-Time</div>
               <div className="w-full h-40 relative mt-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dataLogs} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
+                  <AreaChart data={dataLogs} margin={{ top: 10, right: 5, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="curveGradientMob" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stopColor="#4c1d95" />
@@ -784,11 +784,11 @@ export default function App() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke="#000000" strokeWidth={1} horizontal={false} opacity={0.2} />
-                    <XAxis dataKey="jam" tickLine={false} axisLine={false} stroke="#000" fontSize={8} fontStyle="bold" fontFamily="Inter" />
+                    <XAxis dataKey="jam" tickLine={false} axisLine={false} stroke="#000" fontSize={10} fontStyle="bold" fontFamily="Inter" />
                     <YAxis hide domain={[0, 70]} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Line type="monotone" dataKey="debit_air" stroke="url(#curveGradientMob)" strokeWidth={3} dot={false} />
-                  </LineChart>
+                    <Area type="monotone" dataKey="debit_air" stroke="url(#curveGradientMob)" strokeWidth={4} fill="url(#curveGradientMob)" fillOpacity={0.1} dot={false} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -970,7 +970,7 @@ export default function App() {
                   <div className="w-full h-5 bg-cyan-700 -m-6 mb-6"></div>
                   <h2 className="text-black text-2xl font-bold font-['Poppins'] leading-tight opacity-60 mb-2">Tren Debit Air Real-Time</h2>
                   <div className="flex-1 w-full relative">
-                    <ResponsiveContainer width="100%" height="100%"><LineChart data={dataLogs} margin={{ top: 5, right: 15, left: -30, bottom: 5 }}><defs><linearGradient id="curveGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#4c1d95" /><stop offset="40%" stopColor="#a855f7" /><stop offset="70%" stopColor="#f43f5e" /><stop offset="100%" stopColor="#fdba74" /></linearGradient></defs><CartesianGrid stroke="#000000" strokeWidth={1.5} horizontal={false} opacity={0.8} /><XAxis dataKey="jam" tickLine={false} axisLine={false} stroke="#000" fontSize={8.44} fontStyle="bold" fontFamily="Inter" /><YAxis hide domain={[0, 70]} /><Tooltip content={<CustomTooltip />} /><Line type="monotone" dataKey="debit_air" stroke="url(#curveGradient)" strokeWidth={3.5} dot={false} /></LineChart></ResponsiveContainer>
+                    <ResponsiveContainer width="100%" height="100%"><AreaChart data={dataLogs} margin={{ top: 5, right: 15, left: -30, bottom: 5 }}><defs><linearGradient id="curveGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#4c1d95" /><stop offset="40%" stopColor="#a855f7" /><stop offset="70%" stopColor="#f43f5e" /><stop offset="100%" stopColor="#fdba74" /></linearGradient></defs><CartesianGrid stroke="#000000" strokeWidth={1.5} horizontal={false} opacity={0.8} /><XAxis dataKey="jam" tickLine={false} axisLine={false} stroke="#000" fontSize={12} fontStyle="bold" fontFamily="Inter" /><YAxis hide domain={[0, 70]} /><Tooltip content={<CustomTooltip />} /><Area type="monotone" dataKey="debit_air" stroke="url(#curveGradient)" strokeWidth={5} fill="url(#curveGradient)" fillOpacity={0.1} dot={false} /></AreaChart></ResponsiveContainer>
                   </div>
                 </div>
               </div>
