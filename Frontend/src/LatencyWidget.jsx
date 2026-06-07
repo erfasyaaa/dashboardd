@@ -29,7 +29,7 @@ export default function LatencyWidget({ latencyMs, latencyDetail, onDownload, is
       </div>
       {latencyDetail && (
         <div className="bg-black/50 px-4 py-2.5 rounded-xl border border-white/10 text-white font-mono text-xs flex flex-col gap-1 backdrop-blur-md shadow-xl w-max">
-           <div className="text-teal-200">Titik A (Server MySQL) : {latencyDetail.serverTime}</div>
+           <div className="text-teal-200">Titik A (Server Backend) : {latencyDetail.serverTime}</div>
            <div className="text-sky-200">Titik B (Web Ter-render): {latencyDetail.webTime}</div>
         </div>
       )}

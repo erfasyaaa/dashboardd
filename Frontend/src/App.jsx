@@ -90,7 +90,7 @@ const LatencyWidget = ({ latencyMs, latencyDetail, onDownload, isMobile = false 
       </div>
       {latencyDetail && (
         <div className="bg-white/10 px-4 rounded-xl border border-white/20 text-white font-mono text-xs flex flex-col justify-center gap-1.5 backdrop-blur-md shadow-xl w-max">
-           <div className="flex items-center gap-2"><span className="text-teal-200 font-bold w-[165px]">Titik A (Server MySQL)</span><span className="text-white/80">:</span><span className="text-white">{latencyDetail.serverTime}</span></div>
+           <div className="flex items-center gap-2"><span className="text-teal-200 font-bold w-[165px]">Titik A (Server Backend)</span><span className="text-white/80">:</span><span className="text-white">{latencyDetail.serverTime}</span></div>
            <div className="flex items-center gap-2"><span className="text-sky-200 font-bold w-[165px]">Titik B (Web Ter-render)</span><span className="text-white/80">:</span><span className="text-white">{latencyDetail.webTime}</span></div>
         </div>
       )}
@@ -353,7 +353,7 @@ export default function App() {
   const [currentRiver, setCurrentRiver] = useState('Sungai Code');
   const [currentImage, setCurrentImage] = useState(cctvImage);
 
-  // State Grafik Mingguan (Fallback otomatis dipakai jika MySQL gagal / terputus)
+  // State Grafik Mingguan (Fallback otomatis dipakai jika server terputus)
   const [dataGrafikMingguan, setDataGrafikMingguan] = useState([ 
     { hari: 'Sen', tinggi_rata2: 2.2, tinggi_maks: 3.1 }, 
     { hari: 'Sel', tinggi_rata2: 2.1, tinggi_maks: 2.5 }, 
@@ -424,49 +424,51 @@ export default function App() {
         const dataMonthly = await resMonthly.json(); 
         if (dataMonthly.length > 0) setDataTabelBulanan(dataMonthly); 
     } catch (error) { 
-      console.warn('Backend tidak terhubung, menjalankan simulasi indikator lokal...'); 
+      console.warn('Backend tidak terhubung, menjalankan simulasi otomatis tiap 5 detik...'); 
       
-      setLatestData(prev => {
-        let newTMA = prev.ketinggian_air;
-        
-        // Logika fallback distabilkan agar banyak Aman & Waspada
-        if (newTMA > 3.5) newTMA -= (Math.random() * 0.5 + 0.1); 
-        else newTMA += (Math.random() * 0.4 - 0.2); 
-        
-        if (Math.random() < 0.15) newTMA += (Math.random() * 0.8);
-        if (Math.random() < 0.02) newTMA += (Math.random() * 1.2);
-        
-        if (newTMA < 2.0) newTMA = 2.0 + Math.random() * 0.1; // Minimal 2
-        if (newTMA > 5.0) newTMA = 5.0; // Maksimal batas 5
+      setInterval(() => {
+        setLatestData(prev => {
+          let newTMA = prev.ketinggian_air;
+          
+          // Logika fallback distabilkan agar banyak Aman & Waspada
+          if (newTMA > 3.5) newTMA -= (Math.random() * 0.5 + 0.1); 
+          else newTMA += (Math.random() * 0.4 - 0.2); 
+          
+          if (Math.random() < 0.15) newTMA += (Math.random() * 0.8);
+          if (Math.random() < 0.02) newTMA += (Math.random() * 1.2);
+          
+          if (newTMA < 2.0) newTMA = 2.0 + Math.random() * 0.1; // Minimal 2
+          if (newTMA > 5.0) newTMA = 5.0; // Maksimal batas 5
 
-        let status = 'Aman';
-        if (newTMA >= 5.00) status = 'Awas';
-        else if (newTMA >= 4.00) status = 'Siaga';
-        else if (newTMA >= 3.00) status = 'Waspada';
+          let status = 'Aman';
+          if (newTMA >= 5.00) status = 'Awas';
+          else if (newTMA >= 4.00) status = 'Siaga';
+          else if (newTMA >= 3.00) status = 'Waspada';
 
-        let newDebit = (newTMA * 22) + (Math.random() * 5 - 2.5);
-        if (newDebit < 5) newDebit = 5 + Math.random() * 2;
-        
-        let newHujan = (newTMA * 12) + (Math.random() * 8 - 4);
-        if (newHujan < 0) newHujan = 0;
+          let newDebit = (newTMA * 22) + (Math.random() * 5 - 2.5);
+          if (newDebit < 5) newDebit = 5 + Math.random() * 2;
+          
+          let newHujan = (newTMA * 12) + (Math.random() * 8 - 4);
+          if (newHujan < 0) newHujan = 0;
 
-        const newData = {
-          ketinggian_air: parseFloat(newTMA.toFixed(2)),
-          debit_air: parseFloat(newDebit.toFixed(2)),
-          curah_hujan: parseFloat(newHujan.toFixed(2)),
-          status: status
-        };
+          const newData = {
+            ketinggian_air: parseFloat(newTMA.toFixed(2)),
+            debit_air: parseFloat(newDebit.toFixed(2)),
+            curah_hujan: parseFloat(newHujan.toFixed(2)),
+            status: status
+          };
 
-        setDataLogs(prevLogs => {
-          const now = new Date();
-          const jam = now.toLocaleTimeString('id-ID', { hour12: false });
-          const newLog = { ...newData, jam, tanggal: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) };
-          const updatedLogs = [...prevLogs, newLog];
-          return updatedLogs.length > 50 ? updatedLogs.slice(updatedLogs.length - 50) : updatedLogs;
+          setDataLogs(prevLogs => {
+            const now = new Date();
+            const jam = now.toLocaleTimeString('id-ID', { hour12: false });
+            const newLog = { ...newData, jam, tanggal: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) };
+            const updatedLogs = [...prevLogs, newLog];
+            return updatedLogs.length > 50 ? updatedLogs.slice(updatedLogs.length - 50) : updatedLogs;
+          });
+
+          return newData;
         });
-
-        return newData;
-      });
+      }, 5000);
     } 
   }; 
 
@@ -485,7 +487,7 @@ export default function App() {
   };
 
   useEffect(() => { 
-    // Panggil fetchData 1x di awal untuk mengisi data awal (riwayat tabel) dari MySQL API
+    // Panggil fetchData 1x di awal untuk mengisi data awal (riwayat tabel) dari API Backend
     fetchData();
 
     // Setup koneksi WebSocket dengan backend

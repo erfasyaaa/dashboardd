@@ -1,8 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const mysql = require('mysql2');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -18,73 +19,41 @@ const io = new Server(server, {
   }
 });
 
-// 1. Konfigurasi Database MySQL (XAMPP)
-const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',      // Default XAMPP username
-  password: '',      // Default XAMPP password (kosong)
-  database: 'hydro_db' 
-});
+const csvPath = path.join(__dirname, 'dummy_sensor_data.csv');
+let sensorDataCache = [];
 
-db.connect((err) => {
-  if (err) {
-    console.error('❌ Gagal koneksi ke MySQL:', err);
-  } else {
-    console.log('✅ Berhasil terkoneksi ke Database MySQL XAMPP!');
-
-    // AUTO-SEEDER: Cek apakah data kurang dari 50, kalau iya isi otomatis!
-    db.query('SELECT COUNT(*) AS total FROM sensor_logs', (err, results) => {
-      if (!err && results[0].total < 50) {
-        console.log('🔄 Database masih kosong. Memasukkan 50 data dummy otomatis...');
-        
-        const values = [];
-        const now = new Date();
-        let tempTMA = 2.15;
-        
-        for (let i = 50; i > 0; i--) {
-          const d = new Date(now.getTime() - i * 15000); // Mundur 15 detik per data
-          
-          if (tempTMA > 3.5) tempTMA -= (Math.random() * 0.5 + 0.1); 
-          else tempTMA += (Math.random() * 0.4 - 0.2); 
-          if (tempTMA < 2.0) tempTMA = 2.0 + Math.random() * 0.1;
-          if (tempTMA > 5.0) tempTMA = 5.0;
-
-          let tempDebit = (tempTMA * 22) + (Math.random() * 5 - 2.5);
-          if (tempDebit < 5) tempDebit = 5 + Math.random() * 2;
-          let tempHujan = (tempTMA * 12) + (Math.random() * 8 - 4);
-          if (tempHujan < 0) tempHujan = 0;
-
-          let status = 'Aman';
-          if (tempTMA >= 5.00) status = 'Awas';
-          else if (tempTMA >= 4.00) status = 'Siaga';
-          else if (tempTMA >= 3.00) status = 'Waspada';
-          
-          const jam = d.toLocaleTimeString('id-ID', { hour12: false });
-          const tanggal = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-          // Format waktu (created_at) ke standar MySQL YYYY-MM-DD HH:MM:SS
-          const localDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().slice(0, 19).replace('T', ' ');
-
-          values.push([parseFloat(tempTMA.toFixed(2)), parseFloat(tempDebit.toFixed(2)), parseFloat(tempHujan.toFixed(2)), status, jam, tanggal, localDate]);
-        }
-        
-        const query = 'INSERT INTO sensor_logs (ketinggian_air, debit_air, curah_hujan, status, jam, tanggal, created_at) VALUES ?';
-        db.query(query, [values], (err) => {
-          if (err) console.error('❌ Gagal auto-insert:', err);
-          else console.log('✅ 50 Data awal berhasil ditambahkan! Silakan refresh browser kamu.');
+// 1. Fungsi Membaca Data dari CSV ke Memory
+const loadCSV = () => {
+  if (fs.existsSync(csvPath)) {
+    const fileContent = fs.readFileSync(csvPath, 'utf8');
+    const lines = fileContent.trim().split('\n');
+    for (let i = 1; i < lines.length; i++) { // Lewati baris 0 (header)
+      const values = lines[i].split(',');
+      if (values.length >= 5) {
+        const [ketinggian, debit, hujan, status, created_at] = values;
+        const d = new Date(created_at);
+        sensorDataCache.push({
+          ketinggian_air: parseFloat(ketinggian),
+          debit_air: parseFloat(debit),
+          curah_hujan: parseFloat(hujan),
+          status: status,
+          created_at: created_at,
+          jam: d.toLocaleTimeString('id-ID', { hour12: false }),
+          tanggal: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
         });
       }
-    });
+    }
+    console.log(`✅ Berhasil memuat ${sensorDataCache.length} baris data dari CSV!`);
+  } else {
+    console.warn('⚠️ File dummy_sensor_data.csv tidak ditemukan. Jalankan node generate_csv.js dulu!');
   }
-});
+};
+loadCSV();
 
 // 2. API Endpoints untuk Initial Load Frontend
 app.get('/api/sensor-data', (req, res) => {
-  // Ambil 50 data TERBARU, lalu urutkan kembali dari lama ke baru agar grafik berjalan maju
-  const query = 'SELECT * FROM (SELECT * FROM sensor_logs ORDER BY created_at DESC LIMIT 50) sub ORDER BY created_at ASC';
-  db.query(query, (err, results) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(results);
-  });
+  // Ambil 50 data TERBARU dari memory (cache CSV)
+  res.json(sensorDataCache.slice(-50));
 });
 
 app.get('/api/sensor-data/weekly', (req, res) => {
@@ -103,11 +72,11 @@ io.on('connection', (socket) => {
   });
 });
 
-// 4. SIMULASI SENSOR: Insert otomatis ke MySQL & Broadcast via Socket.io tiap 15 detik
+// 4. SIMULASI SENSOR: Tambah otomatis ke CSV & Broadcast via Socket.io tiap 15 detik
 setInterval(() => {
   // ---------------------------------------------------------
   // PENGUJIAN RESPONSE TIME (END-TO-END LATENCY)
-  // Titik A: Catat waktu persis saat akuisisi sensor (sebelum disimpan)
+  // Titik A: Catat waktu persis saat akuisisi sensor (sebelum disimpan ke CSV)
   // ---------------------------------------------------------
   const waktu_akuisisi = Date.now();
 
@@ -123,25 +92,34 @@ setInterval(() => {
   const now = new Date();
   const jam = now.toLocaleTimeString('id-ID', { hour12: false });
   const tanggal = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const tzOffset = now.getTimezoneOffset() * 60000;
+  const formattedDate = new Date(now.getTime() - tzOffset).toISOString().slice(0, 19).replace('T', ' ');
 
-  const query = 'INSERT INTO sensor_logs (ketinggian_air, debit_air, curah_hujan, status, jam, tanggal) VALUES (?, ?, ?, ?, ?, ?)';
-  
-  // Simpan data baru ke MySQL
-  db.query(query, [ketinggian, debit, hujan, status, jam, tanggal], (err, results) => {
-    if (!err) {
-      // Ambil data yang baru saja disimpan beserta timestamp (created_at) dari MySQL
-      db.query('SELECT * FROM sensor_logs WHERE id = ?', [results.insertId], (err, rows) => {
-        if (!err && rows.length > 0) {
-          // Copy objek dari MySQL dan sisipkan Titik A agar aman dikirim ke Frontend
-          const dataToBroadcast = { ...rows[0], waktu_akuisisi: waktu_akuisisi };
-          
-          // Broadcast ke Frontend secara Real-Time agar Latency bisa diukur!
-          io.emit('newData', dataToBroadcast);
-        }
-      });
+  const newRecord = {
+    ketinggian_air: ketinggian,
+    debit_air: debit,
+    curah_hujan: hujan,
+    status: status,
+    created_at: formattedDate,
+    jam: jam,
+    tanggal: tanggal
+  };
+
+  // Simpan ke memory
+  sensorDataCache.push(newRecord);
+
+  // Simpan baris baru ke CSV secara langsung
+  const csvLine = `\n${ketinggian.toFixed(2)},${debit.toFixed(2)},${hujan.toFixed(2)},${status},${formattedDate}`;
+  fs.appendFile(csvPath, csvLine, (err) => {
+    if (err) {
+      console.error('❌ Gagal append CSV:', err);
     }
+    
+    // Tetap broadcast ke Frontend walaupun CSV gagal di-append (misal file sedang dibuka di Excel)
+    const dataToBroadcast = { ...newRecord, waktu_akuisisi: waktu_akuisisi };
+    io.emit('newData', dataToBroadcast);
   });
-}, 15000);
+}, 5000); // Dipercepat dari 15 detik menjadi 5 detik
 
 const PORT = 5000;
 // CATATAN: Pastikan memanggil server.listen() bukan app.listen() jika pakai Socket.io
