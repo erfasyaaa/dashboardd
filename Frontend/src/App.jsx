@@ -645,18 +645,12 @@ export default function App() {
 
         {/* Header Mobile */}
         <header className="px-4 py-6 flex flex-col gap-4 relative">
-          <LatencyWidget 
-            latencyMs={latencyMs} 
-            latencyDetail={latencyDetail} 
-            onDownload={downloadCSV}
-            isMobile={true}
-          />
-          <div className="flex flex-col gap-5 mt-24">
+          <div className="flex flex-col gap-5 mt-2">
             <div className="flex items-center justify-center relative">
               <button onClick={() => setIsSidebarOpen(true)} className="absolute left-0 text-white p-2 z-10">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
               </button>
-              <h1 className="text-center text-white text-5xl font-extrabold drop-shadow-lg tracking-wide">Hydroguard Interactive</h1>
+              <h1 className="text-center text-white text-2xl sm:text-3xl font-extrabold drop-shadow-lg tracking-wide pl-12 leading-tight">Hydroguard Interactive</h1>
             </div>
             
             {/* PENCARIAN MOBILE */}
